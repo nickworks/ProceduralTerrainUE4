@@ -51,6 +51,7 @@ enum ESignalType
 	Subtract,
 	Multiply,
 	Average,
+	Fill,
 	None
 };
 

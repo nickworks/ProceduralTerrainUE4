@@ -184,6 +184,12 @@ float AProceduralTerrain::GetDensitySample(FVector pos)
 
         const FSignalField& field = signalFields[i];
 
+
+        if (field.type == ESignalType::Fill) {
+            res = field.densityBias;
+            continue; // no perlin noise needed for fill, continue to next SignalField
+        }
+
         float val = (FMath::PerlinNoise3D((pos + field.center) * field.zoom) + 1) / 2;
 
         // apply sphere flattening:
@@ -202,6 +208,9 @@ float AProceduralTerrain::GetDensitySample(FVector pos)
         // adjust how various fields are mixed together:
         switch (field.type)
         {
+        case ESignalType::Fill: // this should never happen, but just in case...
+            res = field.densityBias;
+            break;
         case ESignalType::Add:
             res += val;
             break;

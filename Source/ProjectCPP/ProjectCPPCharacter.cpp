@@ -9,46 +9,36 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AProjectCPPCharacter
 
 AProjectCPPCharacter::AProjectCPPCharacter()
 {
-
-	lastThingWeSpawned = nullptr;
-
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
-	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); // ...at this rotation rate
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character	
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
-	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,13 +54,50 @@ void AProjectCPPCharacter::SetupPlayerInputComponent(class UInputComponent* Play
 	PlayerInputComponent->BindAxis("MoveForward", this, &AProjectCPPCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AProjectCPPCharacter::MoveRight);
 
-	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
-	// "turn" handles devices that provide an absolute delta, such as a mouse.
-	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
+	// mouse look:
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("TurnRate", this, &AProjectCPPCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	// controller look:
+	PlayerInputComponent->BindAxis("TurnRate", this, &AProjectCPPCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AProjectCPPCharacter::LookUpAtRate);
+	
+	PlayerInputComponent->BindAction("Reload Level", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ReloadLevel);
+	PlayerInputComponent->BindAction("Throw Flare", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ThrowFlare);
+}
+
+void AProjectCPPCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	OnDestroyed.AddDynamic(this, &AProjectCPPCharacter::OnDestroy);
+}
+void AProjectCPPCharacter::ReloadLevel()
+{
+	UWorld* world = GetWorld();
+	UGameplayStatics::OpenLevel(world, FName(UGameplayStatics::GetCurrentLevelName(world)));
+}
+void AProjectCPPCharacter::ThrowFlare()
+{
+	if (!flareToSpawn) return;
+
+	FRotator rot = FollowCamera->GetComponentRotation();
+	
+	FVector pos = GetActorLocation() + FRotator(0, rot.Yaw, 0).Vector() * 100;
+	
+	AActor* flare = GetWorld()->SpawnActor<AActor>(flareToSpawn, pos, FRotator::MakeFromEuler(FMath::VRand() * 360));
+
+	if (UPrimitiveComponent* root = Cast<UPrimitiveComponent>(flare->GetRootComponent())) {
+		rot.Pitch += 45;
+		if (rot.Pitch > 90) rot.Pitch = 90;
+
+		root->SetAllPhysicsLinearVelocity(rot.Vector() * 1000);
+		root->SetAllPhysicsAngularVelocityInRadians(FMath::VRand());
+	}
+
+
+}
+void AProjectCPPCharacter::OnDestroy(AActor* actor)
+{
+	
 }
 
 void AProjectCPPCharacter::TurnAtRate(float Rate)

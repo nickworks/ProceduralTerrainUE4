@@ -25,6 +25,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Abilities")
+	TSubclassOf<AActor> flareToSpawn;
 
 protected:
 
@@ -33,13 +36,16 @@ protected:
 	void TurnAtRate(float Rate);
 	void LookUpAtRate(float Rate);
 
-	void LineTraceInteract();
-	void ShootProjectile();
-
-	AActor* lastThingWeSpawned;
 
 protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void BeginPlay() override;
+	UFUNCTION()
+	void OnDestroy(AActor* actor);
+	UFUNCTION()
+	void ReloadLevel();
+	UFUNCTION()
+	void ThrowFlare();
 
 public:
 
