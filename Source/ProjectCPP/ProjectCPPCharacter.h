@@ -29,6 +29,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Abilities")
 	TSubclassOf<AActor> flareToSpawn;
 
+	UFUNCTION()
+	void ChangeView();
+
 protected:
 
 	void MoveForward(float Value);

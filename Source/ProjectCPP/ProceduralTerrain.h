@@ -20,6 +20,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
     bool regenerate = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+    bool clearMeshData = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
 	int terrainSize = 10; // number of voxels in the terrain
 	

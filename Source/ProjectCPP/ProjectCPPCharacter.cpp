@@ -18,6 +18,7 @@ AProjectCPPCharacter::AProjectCPPCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
+
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
@@ -31,7 +32,7 @@ AProjectCPPCharacter::AProjectCPPCharacter()
 	GetCharacterMovement()->AirControl = 0.2f;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->SetupAttachment(GetMesh(),FName("headSocket"));
 	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character	
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
@@ -63,6 +64,7 @@ void AProjectCPPCharacter::SetupPlayerInputComponent(class UInputComponent* Play
 	
 	PlayerInputComponent->BindAction("Reload Level", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ReloadLevel);
 	PlayerInputComponent->BindAction("Throw Flare", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ThrowFlare);
+	PlayerInputComponent->BindAction("Toggle View", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ChangeView);
 }
 
 void AProjectCPPCharacter::BeginPlay()
@@ -110,6 +112,21 @@ void AProjectCPPCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+}
+
+void AProjectCPPCharacter::ChangeView()
+{
+	static bool isFirstPerson = true;
+	isFirstPerson = !isFirstPerson;
+	
+	if (isFirstPerson) {
+		CameraBoom->TargetArmLength = 0;
+		bUseControllerRotationYaw = true;
+	}
+	else {
+		CameraBoom->TargetArmLength = 300;
+		bUseControllerRotationYaw = false;
+	}
 }
 
 void AProjectCPPCharacter::MoveForward(float Value)

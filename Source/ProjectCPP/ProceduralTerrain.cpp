@@ -26,10 +26,14 @@ void AProceduralTerrain::OnConstruction(const FTransform& xform)
 {
     if (regenerate) {
         GenerateTerrain();
-        BuildMesh();
-        
+        BuildMesh();   
     }
+    else if (clearMeshData) {
+        ClearMesh();
+    }
+    
     regenerate = false;
+    clearMeshData = false;
 }
 
 void AProceduralTerrain::GenerateTerrain()
