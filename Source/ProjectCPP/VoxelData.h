@@ -52,6 +52,8 @@ enum ESignalType
 	Multiply,
 	Average,
 	Fill,
+	Invert,
+	Square,
 	None
 };
 
