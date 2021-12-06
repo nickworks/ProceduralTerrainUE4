@@ -67,6 +67,11 @@ void AProceduralMeshActor::MakeBox(FVector location, float size)
 	AddTriangle(num + 6, num + 2, num + 1);
 	AddTriangle(num + 6, num + 1, num + 5);
 }
+
+// this function adds a triangle,
+// checking to see if each vertex already exists
+// if a vertex already exists, a duplicate is not added
+
 void AProceduralMeshActor::MakeTriangle(FVector a, FVector b, FVector c)
 {
 
@@ -100,8 +105,8 @@ void AProceduralMeshActor::MakeTriangle(FVector a, FVector b, FVector c)
 }
 void AProceduralMeshActor::BuildMesh()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Building mesh");
-	
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, "Building mesh from " + FString::FromInt(vertices.Num()) + " vertices");
+
 	TArray<FVector> normals;
 	TArray<FProcMeshTangent> tangents;
 	TArray<FVector2D> uvs;
@@ -110,13 +115,38 @@ void AProceduralMeshActor::BuildMesh()
 	normals.SetNum(vertices.Num());
 	tangents.SetNum(vertices.Num());
 
-	GEngine->AddOnScreenDebugMessage(-1, 8, FColor::Green, FString::FromInt(vertices.Num()) + " vertices in base mesh");
-
 	// calculate normals and tangents:
-	UKismetProceduralMeshLibrary::CalculateTangentsForMesh(vertices, triangles, uvs, normals, tangents);
+	// UKismetProceduralMeshLibrary::CalculateTangentsForMesh(vertices, triangles, uvs, normals, tangents);
 	
 	// submit mesh data to component:
 	mesh->CreateMeshSection_LinearColor(0, vertices, triangles, normals, uvs, colors, tangents, true);
+	
+}
+
+void AProceduralMeshActor::AddMesh(TArray<FTriangle> tris)
+{
+	TArray<FVector> vertexList;
+	TArray<int32> triangleList;
+	TArray<FVector> normals;
+	TArray<FProcMeshTangent> tangents;
+	TArray<FVector2D> uvs;
+	TArray<FLinearColor> colors;
+
+	for (int i = 0; i < tris.Num(); i++) {
+		triangleList.Emplace(vertexList.Emplace(tris[i].a));
+		triangleList.Emplace(vertexList.Emplace(tris[i].b));
+		triangleList.Emplace(vertexList.Emplace(tris[i].c));
+		//FVector n = tris[i].CalcNormal();
+		//normals.Emplace(n);
+		//normals.Emplace(n);
+		//normals.Emplace(n);
+	}
+
+	//normals.SetNum(vertexList.Num());
+	//tangents.SetNum(vertexList.Num());
+
+	// submit mesh data to component:
+	mesh->CreateMeshSection_LinearColor(mesh->GetNumSections(), vertexList, triangleList, normals, uvs, colors, tangents, true);
 }
 
 void AProceduralMeshActor::ClearMesh()

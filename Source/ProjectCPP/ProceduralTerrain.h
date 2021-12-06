@@ -6,8 +6,13 @@
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
 #include "ProceduralMeshActor.h"
+#include "Async/AsyncWork.h"
+
 #include "VoxelData.h"
+
 #include "ProceduralTerrain.generated.h"
+
+DECLARE_DELEGATE_OneParam(FTriangleListDelegate, TArray<FTriangle>);
 
 UCLASS()
 class PROJECTCPP_API AProceduralTerrain : public AProceduralMeshActor
@@ -42,22 +47,28 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
-	virtual void Tick(float DeltaTime) override;
+    virtual void Tick(float DeltaTime) override;
 	virtual void OnConstruction(const FTransform& xform) override;
 
-	UFUNCTION()
-	void GenerateTerrain();
+    UFUNCTION()
+	void GenerateTerrainDensity();
 
-    virtual void BuildMesh() override;
+    UFUNCTION()
+    void BeginCubeMarching();
+
+    UFUNCTION()
+    void OnCubeMarched(TArray<FTriangle> tris);
 
 protected:
+
     float GetDensitySample(FVector pos);
-    void MarchCube(int x, int y, int z);
-    FVector LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2);
+    static FVector LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2);
 
     // A 3D cache of density data:
     UPROPERTY()
     FVoxelData3D densityCache;
+
+    bool IsBuilding = false;
 
 	const int32 edgeTable[256]{
         0x000, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,

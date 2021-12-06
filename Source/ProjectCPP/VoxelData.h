@@ -34,6 +34,12 @@ struct FVoxelData3D
 	TArray<FVoxelData2D> density;
 
 	float Lookup(int x, int y, int z) {
+
+		if (x >= density.Num() || y >= density[x].density.Num() || z >= density[x].density[y].density.Num()) {
+			GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("Prevented bad lookup"));
+			return 0;
+		}
+
 		return density[x].density[y].density[z];
 	}
 	void Set(int x, int y, int z, float d) {
@@ -43,6 +49,7 @@ struct FVoxelData3D
 		density.Empty();
 	}
 };
+
 
 UENUM()
 enum ESignalType
