@@ -51,17 +51,17 @@ struct FVoxelData3D
 };
 
 
-UENUM()
-enum ESignalType
+UENUM(BlueprintType)
+enum class ESignalType : uint8
 {
-	Add,
-	Subtract,
-	Multiply,
-	Average,
-	Fill,
-	Invert,
-	Square,
-	None
+	Add			UMETA(DisplayName = "Add Noise"),
+	Subtract	UMETA(DisplayName = "Subtract noise"),
+	Multiply	UMETA(DisplayName = "Multiply noise"),
+	Average		UMETA(DisplayName = "Average noise"),
+	Fill		UMETA(DisplayName = "Fill with offset val"),
+	Invert		UMETA(DisplayName = "Invert the density"),
+	Square		UMETA(DisplayName = "Square the density"),
+	None		UMETA(DisplayName = "OFF")
 };
 
 USTRUCT(BlueprintType)

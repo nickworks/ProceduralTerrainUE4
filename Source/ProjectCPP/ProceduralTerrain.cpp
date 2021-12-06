@@ -38,8 +38,16 @@ void AProceduralTerrain::OnConstruction(const FTransform& xform)
     //OnRebuildMesh-BindDynamic(this, &AProceduralTerrain::BuildMesh);
 }
 
+void AProceduralTerrain::GenerateFromFields(TArray<FSignalField> fields)
+{
+    signalFields = TArray<FSignalField>(fields);
+    GenerateTerrainDensity();
+    BeginCubeMarching();
+}
+
 void AProceduralTerrain::GenerateTerrainDensity()
 {
+
     FVector bounds = FVector::OneVector * terrainSize * voxelSize / 2;
     box->SetRelativeLocation(bounds);
     box->SetBoxExtent(bounds);

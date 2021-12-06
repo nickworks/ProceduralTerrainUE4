@@ -50,16 +50,19 @@ public:
     virtual void Tick(float DeltaTime) override;
 	virtual void OnConstruction(const FTransform& xform) override;
 
-    UFUNCTION()
-	void GenerateTerrainDensity();
-
-    UFUNCTION()
-    void BeginCubeMarching();
+    UFUNCTION(BlueprintCallable)
+    void GenerateFromFields(TArray<FSignalField> fields);
 
     UFUNCTION()
     void OnCubeMarched(TArray<FTriangle> tris);
 
 protected:
+
+    UFUNCTION()
+	void GenerateTerrainDensity();
+
+    UFUNCTION()
+    void BeginCubeMarching();
 
     float GetDensitySample(FVector pos);
     static FVector LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2);
@@ -68,6 +71,7 @@ protected:
     UPROPERTY()
     FVoxelData3D densityCache;
 
+    
     bool IsBuilding = false;
 
 	const int32 edgeTable[256]{
