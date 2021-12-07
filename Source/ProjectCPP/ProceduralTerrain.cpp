@@ -13,8 +13,6 @@ AProceduralTerrain::AProceduralTerrain() : AProceduralMeshActor()
 void AProceduralTerrain::BeginPlay()
 {
 	Super::BeginPlay();
-    GenerateTerrainDensity();
-    BeginCubeMarching();
 }
 
 void AProceduralTerrain::Tick(float DeltaTime)
@@ -182,13 +180,13 @@ void AProceduralTerrain::BeginCubeMarching()
                         FVector b = vertlist[ptr->triTable[bitfield][i + 1]] + center;
                         FVector c = vertlist[ptr->triTable[bitfield][i + 2]] + center;
 
-                        tris.Add(FTriangle(a, b, c));
+                        tris.Add(FTriangle(a, c, b));
                     }
 
                 }
             }
 
-            GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, "done with layer...");
+            //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, "done with layer...");
         }
         AsyncTask(ENamedThreads::GameThread, [WhenItsDone, tris]()
         {
@@ -222,9 +220,6 @@ float AProceduralTerrain::GetDensitySample(FVector pos)
     for(int i = 0; i < signalFields.Num(); i++)
     {
 
-        if (res > 1) res = 1;
-        if (res < 0) res = 0;
-
         const FSignalField& field = signalFields[i];
 
         if (field.type == ESignalType::Fill) {
@@ -240,27 +235,62 @@ float AProceduralTerrain::GetDensitySample(FVector pos)
             continue; // no perlin noise needed for invert, continue to next SignalField
         }
 
-        float val = (FMath::PerlinNoise3D((pos + field.center) * field.zoom) + 1) / 2;
+        // use position to sample perlin noise
+        float val = FMath::PerlinNoise3D((pos + field.center)* field.zoom); // -1 to 1
+        
+        val += 1; // 0 to 2
+        val /= 2; // 0 to 1
 
         // apply sphere flattening:
         if (field.flattenToSphere > 0) {
-            float sphereDensity = field.flattenOffset * field.flattenOffset / (field.center - pos).SizeSquared();
+            
+
+
+            float thresh = field.flattenOffset * field.flattenOffset;
+            float dist = (pos - field.center).SizeSquared();
+            float sphereDensity = (thresh - dist) / thresh;
+
+            // f = k / dis
+            // dis goes up, f should go down
+
+
+            // close to center 1
+            // near flattenOffset .5
+            // far away 0
+
             val = FMath::Lerp(val, sphereDensity, field.flattenToSphere);
         }
         // apply plane flattening:
         if (field.flattenToPlane > 0) {
 
-            val += (pos.Z + field.flattenOffset) * field.flattenToPlane * field.flattenToPlane * field.flattenToPlane * .01f;
+            val += (field.flattenOffset - pos.Z) * field.flattenToPlane * field.flattenToPlane * field.flattenToPlane * .01f;
         }
 
+        // limit the overall influence of each signal to just 0 to 1
+        if (val < 0) val = 0;
+        if (val > 1) val = 1;
+
         // adjust the final density using the densityBias:
+        val *= field.outputMultiplier;
         val += field.densityBias;
+
 
         // adjust how various fields are mixed together:
         switch (field.type)
         {
         case ESignalType::Fill: // this should never happen, but just in case...
             res = field.densityBias;
+            break;
+        case ESignalType::Block:
+            if (
+                FMath::Abs(pos.X - field.center.X) < 1000 &&
+                FMath::Abs(pos.Y - field.center.Y) < 1000 &&
+                FMath::Abs(pos.Z - field.center.Z) < 1000) {
+                res = 1; // solid
+            }
+            else {
+                res = 0; // air
+            }
             break;
         case ESignalType::Add:
             res += val;
@@ -277,9 +307,9 @@ float AProceduralTerrain::GetDensitySample(FVector pos)
         case ESignalType::None:
             break;
         }
+        if (res > 1) res = 1;
+        if (res < 0) res = 0;
     }
-    if (res > 1) res = 1;
-    if (res < 0) res = 0;
 
     return res;
 }

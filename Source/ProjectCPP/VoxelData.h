@@ -58,9 +58,10 @@ enum class ESignalType : uint8
 	Subtract	UMETA(DisplayName = "Subtract noise"),
 	Multiply	UMETA(DisplayName = "Multiply noise"),
 	Average		UMETA(DisplayName = "Average noise"),
-	Fill		UMETA(DisplayName = "Fill with offset val"),
+	Fill		UMETA(DisplayName = "Fill with Density Bias"),
 	Invert		UMETA(DisplayName = "Invert the density"),
 	Square		UMETA(DisplayName = "Square the density"),
+	Block		UMETA(DisplayName = "Block @"),
 	None		UMETA(DisplayName = "OFF")
 };
 
@@ -71,27 +72,35 @@ struct FSignalField
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		FString name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		TEnumAsByte<ESignalType> type;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		FVector center = FVector(0,0,0);
+		FVector center;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float zoom = .001f; // 1 to 100
+		float zoom;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float densityBias = 0; // -.2 to .2
+		float outputMultiplier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float flattenToPlane = 0; // 0 to 1
+		float densityBias;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float flattenToSphere = 0; // 0 to 1
+		float flattenToPlane;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float flattenOffset = 0; // -20 to 20
+		float flattenToSphere;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		float flattenOffset;
 
 	FSignalField() {
+		this->name = TEXT("Field");
+		this->outputMultiplier = 1.f;
 		this->zoom = .001f;
 		this->center = FVector(0, 0, 0);
 		this->densityBias = 0;
@@ -99,9 +108,11 @@ public:
 		this->flattenToSphere = 0;
 		this->flattenOffset = 0;
 	}
-	FSignalField(float zoom, FVector center, float densityBias, float flattenToPlane, float flattenToSphere, float flattenOffset, ESignalType type)
+	FSignalField(FString name, float zoom, float outputMultiplier, FVector center, float densityBias, float flattenToPlane, float flattenToSphere, float flattenOffset, ESignalType type)
 	{
+		this->name = name;
 		this->zoom = zoom;
+		this->outputMultiplier = outputMultiplier;
 		this->center = center;
 		this->densityBias = densityBias;
 		this->flattenToPlane = flattenToPlane;
@@ -109,6 +120,7 @@ public:
 		this->flattenOffset = flattenOffset;
 		this->type = type;
 	}
+	/*
 	static FSignalField Random() {
 		return FSignalField(
 			FMath::RandRange(0.001f, 0.01f),
@@ -120,5 +132,5 @@ public:
 			(ESignalType)FMath::RandRange(0, 5)
 		);
 	};
-
+	*/
 };
