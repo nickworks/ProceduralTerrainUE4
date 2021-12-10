@@ -12,7 +12,7 @@
 
 #include "ProceduralTerrain.generated.h"
 
-DECLARE_DELEGATE_OneParam(FTriangleListDelegate, TArray<FTriangle>);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FTriangleListDelegate, TArray<FTriangle>, TriangleList);
 
 UCLASS()
 class PROJECTCPP_API AProceduralTerrain : public AProceduralMeshActor
@@ -43,6 +43,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
     class UBoxComponent* box;
 
+    UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Terrain")
+    FTriangleListDelegate OnCubeMarched;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -52,12 +55,12 @@ public:
     UFUNCTION(BlueprintCallable)
     void GenerateFromFields(TArray<FSignalField> fields);
 
-    UFUNCTION()
-    void OnCubeMarched(TArray<FTriangle> tris);
 
     FORCEINLINE FVector GetSize() const { return FVector::OneVector * terrainSize * voxelSize; }
 
 protected:
+    UFUNCTION()
+    void HandleOnCubeMarched(TArray<FTriangle> tris);
 
     UFUNCTION()
 	void GenerateTerrainDensity();
@@ -70,12 +73,11 @@ protected:
 
     // A 3D cache of density data:
     UPROPERTY()
-    FVoxelData3D densityCache;
-
+    FVoxelData3D DensityCache;
     
     bool IsBuilding = false;
 
-	const int32 edgeTable[256]{
+	static constexpr int32 EdgeTable[256]{
         0x000, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
         0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
         0x190, 0x99,  0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
@@ -112,7 +114,7 @@ protected:
     /// <summary>
     /// A big list of lists of triangle indices for Cube Marching. DO NOT EDIT.
     /// </summary>
-    const int32 triTable[256][16]{
+    static constexpr int32 TriTable[256][16]{
         {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         {0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         {0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},

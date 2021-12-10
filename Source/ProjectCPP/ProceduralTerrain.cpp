@@ -12,6 +12,7 @@ AProceduralTerrain::AProceduralTerrain() : AProceduralMeshActor()
 void AProceduralTerrain::BeginPlay()
 {
 	Super::BeginPlay();
+    OnCubeMarched.AddDynamic(this, &AProceduralTerrain::HandleOnCubeMarched);
 }
 
 
@@ -61,7 +62,7 @@ void AProceduralTerrain::GenerateTerrainDensity()
     FVector loc = GetActorLocation();
 
     int res = terrainSize + 1; // number of densities needed = voxels + 1
-    densityCache.Empty();
+    DensityCache.Empty();
 
     for (int x = 0; x < res; x++)
     {
@@ -86,39 +87,39 @@ void AProceduralTerrain::GenerateTerrainDensity()
             densityPlane.density.Emplace(densityCol);
         }
         /**/
-        densityCache.density.Emplace(densityPlane);
+        DensityCache.density.Emplace(densityPlane);
     }
 }
 
 void AProceduralTerrain::BeginCubeMarching()
 {
 
-    TSoftObjectPtr<AProceduralTerrain> ptr = this;
-
-    //out.BindUFunction(this, FName("BuildMesh"));
-    const FVector positions[8]{
-        ptr->voxelSize * FVector(-0.5f, -0.5f, +0.5f), // L B B
-        ptr->voxelSize * FVector(+0.5f, -0.5f, +0.5f), // R B B
-        ptr->voxelSize * FVector(+0.5f, -0.5f, -0.5f), // R B F
-        ptr->voxelSize * FVector(-0.5f, -0.5f, -0.5f), // L B F
-        ptr->voxelSize * FVector(-0.5f, +0.5f, +0.5f), // L T B
-        ptr->voxelSize * FVector(+0.5f, +0.5f, +0.5f), // R T B
-        ptr->voxelSize * FVector(+0.5f, +0.5f, -0.5f), // R T F
-        ptr->voxelSize * FVector(-0.5f, +0.5f, -0.5f)  // L T F
+    // make variables for lambda function:
+    const FTriangleListDelegate callback = OnCubeMarched;
+    const TSoftObjectPtr<AProceduralTerrain> ptr = this;
+    const FVector positions[8]{ 
+        voxelSize * FVector(-0.5f, -0.5f, +0.5f), // L B B
+        voxelSize * FVector(+0.5f, -0.5f, +0.5f), // R B B
+        voxelSize * FVector(+0.5f, -0.5f, -0.5f), // R B F
+        voxelSize * FVector(-0.5f, -0.5f, -0.5f), // L B F
+        voxelSize * FVector(-0.5f, +0.5f, +0.5f), // L T B
+        voxelSize * FVector(+0.5f, +0.5f, +0.5f), // R T B
+        voxelSize * FVector(+0.5f, +0.5f, -0.5f), // R T F
+        voxelSize * FVector(-0.5f, +0.5f, -0.5f)  // L T F
     };
-    
-    FTriangleListDelegate WhenItsDone;
-    WhenItsDone.BindUFunction(this, "OnCubeMarched");
 
-    AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [WhenItsDone, ptr, positions]() {
-
+    AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [callback, ptr, positions]() {
 
         if (!ptr.IsValid()) return;
 
         int size = ptr->terrainSize;
+        float voxelSize = ptr->voxelSize;
         float iso = ptr->densityThreshold;
 
-        GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, FString::FromInt(size));
+        const FVoxelData3D &d = ptr->DensityCache;
+        auto& triTable = AProceduralTerrain::TriTable;
+        auto& edgeTable = AProceduralTerrain::EdgeTable;
+        auto lerpEdge = &AProceduralTerrain::LerpEdge;
 
         TArray<FTriangle> tris;
 
@@ -129,28 +130,15 @@ void AProceduralTerrain::BeginCubeMarching()
                    // March cube:
                     
                     float densities[8]{
-                        ptr->densityCache.Lookup(x + 0, y + 0, z + 1),
-                        ptr->densityCache.Lookup(x + 1, y + 0, z + 1),
-                        ptr->densityCache.Lookup(x + 1, y + 0, z + 0),
-                        ptr->densityCache.Lookup(x + 0, y + 0, z + 0),
-                        ptr->densityCache.Lookup(x + 0, y + 1, z + 1),
-                        ptr->densityCache.Lookup(x + 1, y + 1, z + 1),
-                        ptr->densityCache.Lookup(x + 1, y + 1, z + 0),
-                        ptr->densityCache.Lookup(x + 0, y + 1, z + 0)
+                        d.Lookup(x + 0, y + 0, z + 1),
+                        d.Lookup(x + 1, y + 0, z + 1),
+                        d.Lookup(x + 1, y + 0, z + 0),
+                        d.Lookup(x + 0, y + 0, z + 0),
+                        d.Lookup(x + 0, y + 1, z + 1),
+                        d.Lookup(x + 1, y + 1, z + 1),
+                        d.Lookup(x + 1, y + 1, z + 0),
+                        d.Lookup(x + 0, y + 1, z + 0)
                     };
-                    bool isSolid = false;
-                    bool shouldMarch = false;
-                    for (int i = 0; i < 8; i++) {
-                        bool s = densities[i] > ptr->densityThreshold;
-                        if (i > 0 && isSolid != s) {
-                            shouldMarch = true;
-                            break;
-                        }
-                        isSolid = s;
-                    }
-                    if (!shouldMarch) continue; // skip to next voxel
-
-                    FVector center = FVector(x, y, z) * ptr->voxelSize;
 
                     int bitfield = 0;
                     if (densities[0] < iso) bitfield |= 1;
@@ -163,46 +151,46 @@ void AProceduralTerrain::BeginCubeMarching()
                     if (densities[7] < iso) bitfield |= 128;
 
                     // Cube is entirely in/out of the surface 
-                    if (ptr->edgeTable[bitfield] == 0) continue; // skip to next voxel
+                    if (edgeTable[bitfield] == 0) continue; // skip to next voxel
 
                     // Find the vertices where the surface intersects the cube 
                     FVector vertlist[12];
-                    if ((ptr->edgeTable[bitfield] &    1) > 0) vertlist[0]  = AProceduralTerrain::LerpEdge(iso, positions[0], positions[1], densities[0], densities[1]);
-                    if ((ptr->edgeTable[bitfield] &    2) > 0) vertlist[1]  = AProceduralTerrain::LerpEdge(iso, positions[1], positions[2], densities[1], densities[2]);
-                    if ((ptr->edgeTable[bitfield] &    4) > 0) vertlist[2]  = AProceduralTerrain::LerpEdge(iso, positions[2], positions[3], densities[2], densities[3]);
-                    if ((ptr->edgeTable[bitfield] &    8) > 0) vertlist[3]  = AProceduralTerrain::LerpEdge(iso, positions[3], positions[0], densities[3], densities[0]);
-                    if ((ptr->edgeTable[bitfield] &   16) > 0) vertlist[4]  = AProceduralTerrain::LerpEdge(iso, positions[4], positions[5], densities[4], densities[5]);
-                    if ((ptr->edgeTable[bitfield] &   32) > 0) vertlist[5]  = AProceduralTerrain::LerpEdge(iso, positions[5], positions[6], densities[5], densities[6]);
-                    if ((ptr->edgeTable[bitfield] &   64) > 0) vertlist[6]  = AProceduralTerrain::LerpEdge(iso, positions[6], positions[7], densities[6], densities[7]);
-                    if ((ptr->edgeTable[bitfield] &  128) > 0) vertlist[7]  = AProceduralTerrain::LerpEdge(iso, positions[7], positions[4], densities[7], densities[4]);
-                    if ((ptr->edgeTable[bitfield] &  256) > 0) vertlist[8]  = AProceduralTerrain::LerpEdge(iso, positions[0], positions[4], densities[0], densities[4]);
-                    if ((ptr->edgeTable[bitfield] &  512) > 0) vertlist[9]  = AProceduralTerrain::LerpEdge(iso, positions[1], positions[5], densities[1], densities[5]);
-                    if ((ptr->edgeTable[bitfield] & 1024) > 0) vertlist[10] = AProceduralTerrain::LerpEdge(iso, positions[2], positions[6], densities[2], densities[6]);
-                    if ((ptr->edgeTable[bitfield] & 2048) > 0) vertlist[11] = AProceduralTerrain::LerpEdge(iso, positions[3], positions[7], densities[3], densities[7]);
+                    if ((edgeTable[bitfield] &    1) > 0) vertlist[0]  = lerpEdge(iso, positions[0], positions[1], densities[0], densities[1]);
+                    if ((edgeTable[bitfield] &    2) > 0) vertlist[1]  = lerpEdge(iso, positions[1], positions[2], densities[1], densities[2]);
+                    if ((edgeTable[bitfield] &    4) > 0) vertlist[2]  = lerpEdge(iso, positions[2], positions[3], densities[2], densities[3]);
+                    if ((edgeTable[bitfield] &    8) > 0) vertlist[3]  = lerpEdge(iso, positions[3], positions[0], densities[3], densities[0]);
+                    if ((edgeTable[bitfield] &   16) > 0) vertlist[4]  = lerpEdge(iso, positions[4], positions[5], densities[4], densities[5]);
+                    if ((edgeTable[bitfield] &   32) > 0) vertlist[5]  = lerpEdge(iso, positions[5], positions[6], densities[5], densities[6]);
+                    if ((edgeTable[bitfield] &   64) > 0) vertlist[6]  = lerpEdge(iso, positions[6], positions[7], densities[6], densities[7]);
+                    if ((edgeTable[bitfield] &  128) > 0) vertlist[7]  = lerpEdge(iso, positions[7], positions[4], densities[7], densities[4]);
+                    if ((edgeTable[bitfield] &  256) > 0) vertlist[8]  = lerpEdge(iso, positions[0], positions[4], densities[0], densities[4]);
+                    if ((edgeTable[bitfield] &  512) > 0) vertlist[9]  = lerpEdge(iso, positions[1], positions[5], densities[1], densities[5]);
+                    if ((edgeTable[bitfield] & 1024) > 0) vertlist[10] = lerpEdge(iso, positions[2], positions[6], densities[2], densities[6]);
+                    if ((edgeTable[bitfield] & 2048) > 0) vertlist[11] = lerpEdge(iso, positions[3], positions[7], densities[3], densities[7]);
 
-                    for (int i = 0; ptr->triTable[bitfield][i] != -1; i += 3)
+                    // find center of voxel:
+                    const FVector center(FVector(x, y, z) * voxelSize);
+                    for (int i = 0; triTable[bitfield][i] != -1; i += 3)
                     {
-                        FVector a = vertlist[ptr->triTable[bitfield][i + 0]] + center;
-                        FVector b = vertlist[ptr->triTable[bitfield][i + 1]] + center;
-                        FVector c = vertlist[ptr->triTable[bitfield][i + 2]] + center;
+                        FVector a(vertlist[triTable[bitfield][i + 0]] + center);
+                        FVector b(vertlist[triTable[bitfield][i + 1]] + center);
+                        FVector c(vertlist[triTable[bitfield][i + 2]] + center);
 
-                        tris.Add(FTriangle(a, c, b));
+                        tris.Emplace(FTriangle(a, c, b));
                     }
 
-                }
-            }
-
-            //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Purple, "done with layer...");
-        }
-        AsyncTask(ENamedThreads::GameThread, [WhenItsDone, tris]()
+                } // end of y
+            } // end of x
+        } // end of z
+        AsyncTask(ENamedThreads::GameThread, [callback, tris]()
         {
             GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Yellow, "done cube marching");
-            WhenItsDone.ExecuteIfBound(tris);
+            if (callback.IsBound()) callback.Broadcast(tris);
         });
     });
 }
 
-void AProceduralTerrain::OnCubeMarched(TArray<FTriangle> tris)
+void AProceduralTerrain::HandleOnCubeMarched(TArray<FTriangle> tris)
 {
     ClearMesh();
     AddMesh(tris);

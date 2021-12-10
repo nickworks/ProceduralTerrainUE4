@@ -44,13 +44,13 @@ struct FTriangle
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		FVector a;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		FVector b;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		FVector c;
 
 	FTriangle(FVector a, FVector b, FVector c) {
@@ -63,12 +63,9 @@ public:
 	}
 	FVector CalcNormal() {
 		
-		FVector U = b - a;//	Set Vector U to(Triangle.p2 minus Triangle.p1)
-		FVector V = c - b;//	Set Vector V to(Triangle.p3 minus Triangle.p1)
+		FVector U = b - a;
+		FVector V = c - b;
 
 		return FVector(U.Y * V.Z - U.Z * V.Y, U.Z * V.X - U.X * V.Z, U.X * V.Y - U.Y * V.X);
-			//Set Normal.x to(multiply U.y by V.z) minus(multiply U.z by V.y)
-			//Set Normal.y to(multiply U.z by V.x) minus(multiply U.x by V.z)
-			//Set Normal.z to(multiply U.x by V.y) minus(multiply U.y by V.x)
 	}
 };

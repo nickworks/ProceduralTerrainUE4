@@ -41,28 +41,28 @@ void AProceduralMeshActor::MakeBox(FVector location, float size)
 	FVector h(location + FVector(-1, +1, +1) * halfSize); // right-back
 
 	// bottom face:
-	tris.Add(FTriangle(a, b, c));
-	tris.Add(FTriangle(a, c, d));
+	tris.Emplace(FTriangle(a, b, c));
+	tris.Emplace(FTriangle(a, c, d));
 	
 	// top face:
-	tris.Add(FTriangle(e, g, f));
-	tris.Add(FTriangle(e, h, g));
+	tris.Emplace(FTriangle(e, g, f));
+	tris.Emplace(FTriangle(e, h, g));
 	
 	// left face:
-	tris.Add(FTriangle(a, f, b));
-	tris.Add(FTriangle(a, e, f));
+	tris.Emplace(FTriangle(a, f, b));
+	tris.Emplace(FTriangle(a, e, f));
 	
 	// back face:
-	tris.Add(FTriangle(a, d, e));
-	tris.Add(FTriangle(h, e, d));
+	tris.Emplace(FTriangle(a, d, e));
+	tris.Emplace(FTriangle(h, e, d));
 	
 	// right face:
-	tris.Add(FTriangle(h, d, g));
-	tris.Add(FTriangle(g, d, c));
+	tris.Emplace(FTriangle(h, d, g));
+	tris.Emplace(FTriangle(g, d, c));
 	
 	// front face:
-	tris.Add(FTriangle(g, c, b));
-	tris.Add(FTriangle(g, b, f));
+	tris.Emplace(FTriangle(g, c, b));
+	tris.Emplace(FTriangle(g, b, f));
 	
 	AddMesh(tris);
 }
@@ -84,10 +84,6 @@ void AProceduralMeshActor::AddMesh(TArray<FTriangle> tris)
 		triangleList.Emplace(vertexList.Emplace(tris[i].a));
 		triangleList.Emplace(vertexList.Emplace(tris[i].b));
 		triangleList.Emplace(vertexList.Emplace(tris[i].c));
-		//FVector n = tris[i].CalcNormal();
-		//normals.Emplace(n);
-		//normals.Emplace(n);
-		//normals.Emplace(n);
 	}
 
 	//normals.SetNum(vertexList.Num());

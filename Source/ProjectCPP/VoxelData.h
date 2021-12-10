@@ -33,7 +33,7 @@ struct FVoxelData3D
 	UPROPERTY()
 	TArray<FVoxelData2D> density;
 
-	float Lookup(int x, int y, int z) {
+	float Lookup(int x, int y, int z) const {
 
 		if (x >= density.Num() || y >= density[x].density.Num() || z >= density[x].density[y].density.Num()) {
 			GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("Prevented bad lookup"));
@@ -75,7 +75,7 @@ public:
 		FString name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		TEnumAsByte<ESignalType> type;
+		ESignalType type;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		FVector center;
