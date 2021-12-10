@@ -47,7 +47,6 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
-    virtual void Tick(float DeltaTime) override;
 	virtual void OnConstruction(const FTransform& xform) override;
 
     UFUNCTION(BlueprintCallable)
@@ -55,6 +54,8 @@ public:
 
     UFUNCTION()
     void OnCubeMarched(TArray<FTriangle> tris);
+
+    FORCEINLINE FVector GetSize() const { return FVector::OneVector * terrainSize * voxelSize; }
 
 protected:
 

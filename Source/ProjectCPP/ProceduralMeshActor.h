@@ -9,6 +9,7 @@
 
 #include "ProceduralMeshActor.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBuildMeshComplete);
 
 UCLASS()
 class PROJECTCPP_API AProceduralMeshActor : public AActor
@@ -25,22 +26,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
 	float weldThreshold = 80.f; // 
 
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Terrain")
+	FOnBuildMeshComplete OnBuildMeshCompleted;
+
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	TArray<FVector> vertices;
-	TArray<int32> triangles;
-
-	void AddTriangle(int32 a, int32 b, int32 c);
-	void MakeBox(FVector location, float size = 100);
-	void MakeTriangle(FVector a, FVector b, FVector c);
-	virtual void BuildMesh();
-	void ClearMesh();
+	virtual void OnConstruction(const FTransform &xform) override;
 public:	
+	void MakeBox(FVector location, float size = 100);
 	void AddMesh(TArray<FTriangle> tris);
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	void ClearMesh();
 };
 
 USTRUCT(BlueprintType)

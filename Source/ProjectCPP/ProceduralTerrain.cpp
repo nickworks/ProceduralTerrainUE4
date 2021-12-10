@@ -2,10 +2,9 @@
 
 #include "ProceduralTerrain.h"
 
-//AProceduralTerrain::AProceduralTerrain()
 AProceduralTerrain::AProceduralTerrain() : AProceduralMeshActor()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
     
     box = CreateDefaultSubobject<UBoxComponent>(FName("box"));
 }
@@ -15,13 +14,12 @@ void AProceduralTerrain::BeginPlay()
 	Super::BeginPlay();
 }
 
-void AProceduralTerrain::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
 
 void AProceduralTerrain::OnConstruction(const FTransform& xform)
 {
+
+    Super::Super::OnConstruction(xform);
+
     if (regenerate) {
         GenerateTerrainDensity();
         BeginCubeMarching();   
@@ -29,11 +27,23 @@ void AProceduralTerrain::OnConstruction(const FTransform& xform)
     else if (clearMeshData) {
         ClearMesh();
     }
-    
+    else {
+
+        const FVector bounds(GetSize());
+        const FVector h(bounds / 2);
+
+        box->SetRelativeLocation(h);
+        box->SetBoxExtent(h);
+
+        int boxSize = 100;
+        const FVector b(boxSize / 2);
+
+        ClearMesh();
+        MakeBox(b, boxSize);
+        MakeBox(h + h - b, boxSize);
+    }
     regenerate = false;
     clearMeshData = false;
-
-    //OnRebuildMesh-BindDynamic(this, &AProceduralTerrain::BuildMesh);
 }
 
 void AProceduralTerrain::GenerateFromFields(TArray<FSignalField> fields)
@@ -45,10 +55,6 @@ void AProceduralTerrain::GenerateFromFields(TArray<FSignalField> fields)
 
 void AProceduralTerrain::GenerateTerrainDensity()
 {
-
-    FVector bounds = FVector::OneVector * terrainSize * voxelSize / 2;
-    box->SetRelativeLocation(bounds);
-    box->SetBoxExtent(bounds);
 
     GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Making terrain data...");
 
