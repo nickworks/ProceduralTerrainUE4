@@ -14,7 +14,8 @@ public class ProjectCPP : ModuleRules
 			"Engine",
 			"InputCore",
 			"HeadMountedDisplay",
-			"ProceduralMeshComponent"
+			"ProceduralMeshComponent",
+			"UMG"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "ProceduralMeshComponent" });

@@ -11,9 +11,6 @@
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
 
-//////////////////////////////////////////////////////////////////////////
-// AProjectCPPCharacter
-
 AProjectCPPCharacter::AProjectCPPCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -42,9 +39,6 @@ AProjectCPPCharacter::AProjectCPPCharacter()
 
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
-
 void AProjectCPPCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// Set up gameplay key bindings
@@ -65,18 +59,35 @@ void AProjectCPPCharacter::SetupPlayerInputComponent(class UInputComponent* Play
 	PlayerInputComponent->BindAction("Reload Level", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ReloadLevel);
 	PlayerInputComponent->BindAction("Throw Flare", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ThrowFlare);
 	PlayerInputComponent->BindAction("Toggle View", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ChangeView);
+	
+	auto &ref = PlayerInputComponent->BindAction("Pause", IE_Pressed, this, &AProjectCPPCharacter::HandlePause);
+	//ref.bExecuteWhenPaused = true;
 }
 
 void AProjectCPPCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	if (PauseWidgetClass) {
+		PauseWidget = CreateWidget<UPauseWidget>(GetWorld()->GetFirstPlayerController(), PauseWidgetClass);
+		PauseWidget->OnCloseWithApply.AddDynamic(this, &AProjectCPPCharacter::HandlePauseApply);
+		PauseWidget->OnCloseWithCancel.AddDynamic(this, &AProjectCPPCharacter::HandlePauseCancel);
+		
+	}
+	GameMode = Cast<AProjectCPPGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 	OnDestroyed.AddDynamic(this, &AProjectCPPCharacter::OnDestroy);
 }
+
+void AProjectCPPCharacter::OnDestroy(AActor* actor)
+{
+	
+}
+
 void AProjectCPPCharacter::ReloadLevel()
 {
 	UWorld* world = GetWorld();
 	UGameplayStatics::OpenLevel(world, FName(UGameplayStatics::GetCurrentLevelName(world)));
 }
+
 void AProjectCPPCharacter::ThrowFlare()
 {
 	if (!flareToSpawn) return;
@@ -96,10 +107,6 @@ void AProjectCPPCharacter::ThrowFlare()
 	}
 
 
-}
-void AProjectCPPCharacter::OnDestroy(AActor* actor)
-{
-	
 }
 
 void AProjectCPPCharacter::TurnAtRate(float Rate)
@@ -156,4 +163,39 @@ void AProjectCPPCharacter::MoveRight(float Value)
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
 	}
+}
+
+void AProjectCPPCharacter::HandlePause()
+{
+	UGameplayStatics::SetGamePaused(GetWorld(), true);
+	if (PauseWidget) {
+		PauseWidget->AddToPlayerScreen();
+		APlayerController *pc = GetWorld()->GetFirstPlayerController();
+
+		FInputModeUIOnly mode;
+		mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		
+		pc->SetInputMode(mode);
+		pc->SetShowMouseCursor(true);
+	}
+}
+void AProjectCPPCharacter::HandlePauseApply(TArray<FSignalField> data) {
+
+	HandlePauseCancel();
+	GameMode->SetFields(data);
+}
+void AProjectCPPCharacter::HandlePauseCancel() {
+
+	UGameplayStatics::SetGamePaused(GetWorld(), false);
+	
+	if (PauseWidget) PauseWidget->RemoveFromParent();
+
+	APlayerController* pc = GetWorld()->GetFirstPlayerController();
+
+	FInputModeGameOnly mode;
+	mode.SetConsumeCaptureMouseDown(true);
+
+	pc->SetInputMode(mode);
+	pc->SetShowMouseCursor(false);
+
 }

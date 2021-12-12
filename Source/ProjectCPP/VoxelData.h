@@ -107,6 +107,7 @@ public:
 		this->flattenToPlane = 0;
 		this->flattenToSphere = 0;
 		this->flattenOffset = 0;
+		this->type = ESignalType::Add;
 	}
 	FSignalField(FString name, float zoom, float outputMultiplier, FVector center, float densityBias, float flattenToPlane, float flattenToSphere, float flattenOffset, ESignalType type)
 	{

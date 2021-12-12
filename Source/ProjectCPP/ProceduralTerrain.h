@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
 #include "ProceduralMeshActor.h"
+#include "ProjectCPPGameMode.h"
 #include "Async/AsyncWork.h"
 
 #include "VoxelData.h"
@@ -37,9 +38,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
 	float densityThreshold = 0.0f; // 
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-    TArray<FSignalField> signalFields;
-
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
     class UBoxComponent* box;
 
@@ -53,7 +51,7 @@ public:
 	virtual void OnConstruction(const FTransform& xform) override;
 
     UFUNCTION(BlueprintCallable)
-    void GenerateFromFields(TArray<FSignalField> fields);
+    void GenerateDensityFromFields(AProjectCPPGameMode* GameMode);
 
 
     FORCEINLINE FVector GetSize() const { return FVector::OneVector * terrainSize * voxelSize; }
@@ -63,12 +61,8 @@ protected:
     void HandleOnCubeMarched(TArray<FTriangle> tris);
 
     UFUNCTION()
-	void GenerateTerrainDensity();
-
-    UFUNCTION()
     void BeginCubeMarching();
 
-    float GetDensitySample(FVector pos);
     static FVector LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2);
 
     // A 3D cache of density data:
@@ -76,6 +70,8 @@ protected:
     FVoxelData3D DensityCache;
     
     bool IsBuilding = false;
+
+    AProjectCPPGameMode* GameModeRef;
 
 	static constexpr int32 EdgeTable[256]{
         0x000, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,

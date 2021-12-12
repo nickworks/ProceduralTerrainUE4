@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Blueprint/UserWidget.h"
+#include "Kismet/GameplayStatics.h"
+#include "PauseWidget.h"
 #include "ProjectCPPCharacter.generated.h"
 
 UCLASS(config=Game)
@@ -17,6 +20,7 @@ class AProjectCPPCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
+
 public:
 	AProjectCPPCharacter();
 
@@ -29,10 +33,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Abilities")
 	TSubclassOf<AActor> flareToSpawn;
 
+
 	UFUNCTION()
 	void ChangeView();
 
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Refs")
+		class AProjectCPPGameMode* GameMode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GUI")
+	TSubclassOf<class UPauseWidget> PauseWidgetClass;
+
+	UPauseWidget* PauseWidget;
 
 	void MoveForward(float Value);
 	void MoveRight(float Value);
@@ -49,7 +61,12 @@ protected:
 	void ReloadLevel();
 	UFUNCTION()
 	void ThrowFlare();
-
+	UFUNCTION()
+	void HandlePause();
+	UFUNCTION()
+	void HandlePauseApply(TArray<FSignalField> data);
+	UFUNCTION()
+	void HandlePauseCancel();
 public:
 
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
