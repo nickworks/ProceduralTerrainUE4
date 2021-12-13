@@ -7,6 +7,7 @@
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -175,6 +176,7 @@ void AProjectCPPCharacter::HandlePause()
 	UGameplayStatics::SetGamePaused(GetWorld(), true);
 	if (PauseWidget) {
 		PauseWidget->AddToPlayerScreen();
+
 		APlayerController *pc = GetWorld()->GetFirstPlayerController();
 
 		FInputModeUIOnly mode;

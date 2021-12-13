@@ -7,6 +7,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "PauseWidget.h"
+#include "Engine/World.h"
 #include "ProjectCPPCharacter.generated.h"
 
 UCLASS(config=Game)
