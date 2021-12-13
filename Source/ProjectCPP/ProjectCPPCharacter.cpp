@@ -39,6 +39,11 @@ AProjectCPPCharacter::AProjectCPPCharacter()
 
 }
 
+void AProjectCPPCharacter::Tick(float dt)
+{
+	GameMode->UpdateSimulationLocation(GetActorLocation());
+}
+
 void AProjectCPPCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// Set up gameplay key bindings

@@ -34,16 +34,12 @@ struct FVoxelData3D
 	TArray<FVoxelData2D> density;
 
 	float Lookup(int x, int y, int z) const {
-
-		if (x >= density.Num() || y >= density[x].density.Num() || z >= density[x].density[y].density.Num()) {
-			GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, TEXT("Prevented bad lookup"));
-			return 0;
-		}
-
+		if (x >= density.Num() || y >= density[x].density.Num() || z >= density[x].density[y].density.Num()) return 0;
 		return density[x].density[y].density[z];
 	}
 	void Set(int x, int y, int z, float d) {
-		density[x].density[x].density[z] = d;
+		if (x >= density.Num() || y >= density[x].density.Num() || z >= density[x].density[y].density.Num()) return;
+		density[x].density[y].density[z] = d;
 	}
 	void Empty() {
 		density.Empty();

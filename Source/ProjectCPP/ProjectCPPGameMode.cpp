@@ -14,7 +14,7 @@ AProjectCPPGameMode::AProjectCPPGameMode()
 	}
 
     TheSignalFields.Add(FSignalField());
-
+    Chunks = FChunk3D(3);
 }
 
 void AProjectCPPGameMode::SetFields(TArray<FSignalField> data)
@@ -126,4 +126,30 @@ float AProjectCPPGameMode::GetDensitySample(FVector pos)
     }
 
     return res;
+}
+
+void AProjectCPPGameMode::UpdateSimulationLocation(FVector location)
+{
+
+    const FVector chunkSize = GetChunkSize();
+
+    int32 GX = (int)(location.X / chunkSize.X);
+    int32 GY = (int)(location.Y / chunkSize.Y);
+    int32 GZ = (int)(location.Z / chunkSize.Z);
+
+    for (int x = 0; x < Chunks.chunks.Num(); x++) {
+        for (int y = 0; y < Chunks.chunks[x].chunks.Num(); y++) {
+            for (int z = 0; z < Chunks.chunks[x].chunks[y].chunks.Num(); z++) {
+                AProceduralTerrain* chunk = Chunks.Lookup(x, y, z);
+                if (chunk == nullptr) {
+                    auto *actor = GetWorld()->SpawnActor<AProceduralTerrain>(FVector(x * chunkSize.X, y * chunkSize.Y, z * chunkSize.Z), FRotator());
+                    Chunks.Set(x, y, z, actor);
+                    actor->GenerateDensityFromFields(this);
+                }
+            }
+        }
+    }
+    
+
+
 }

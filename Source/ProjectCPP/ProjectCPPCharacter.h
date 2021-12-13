@@ -24,6 +24,8 @@ class AProjectCPPCharacter : public ACharacter
 public:
 	AProjectCPPCharacter();
 
+	virtual void Tick(float dt) override;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
 

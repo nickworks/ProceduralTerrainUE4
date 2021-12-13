@@ -1,12 +1,14 @@
 
 
 #include "ProceduralTerrain.h"
+#include "UObject/ConstructorHelpers.h"
 
 AProceduralTerrain::AProceduralTerrain() : AProceduralMeshActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
     
     box = CreateDefaultSubobject<UBoxComponent>(FName("box"));
+
 }
 
 void AProceduralTerrain::BeginPlay()
@@ -21,40 +23,43 @@ void AProceduralTerrain::OnConstruction(const FTransform& xform)
 
     Super::Super::OnConstruction(xform);
 
-    if (regenerate) {
-        //GenerateTerrainDensity();
-        //BeginCubeMarching();   
-    }
-    else if (clearMeshData) {
-        ClearMesh();
-    }
-    else {
+    auto* GameMode = Cast<AProjectCPPGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 
-        const FVector bounds(GetSize());
-        const FVector h(bounds / 2);
+    const FVector bounds(GameMode ? GameMode->GetChunkSize() : FVector(0));
+    const FVector h(bounds / 2);
 
-        box->SetRelativeLocation(h);
-        box->SetBoxExtent(h);
+    box->SetRelativeLocation(h);
+    box->SetBoxExtent(h);
 
-        int boxSize = 100;
-        const FVector b(boxSize / 2);
+    int boxSize = 100;
+    const FVector b(boxSize / 2);
 
-        ClearMesh();
-        MakeBox(b, boxSize);
-        MakeBox(h + h - b, boxSize);
-    }
-    regenerate = false;
-    clearMeshData = false;
+    ClearMesh();
+    MakeBox(b, boxSize);
+    MakeBox(h + h - b, boxSize);
+    
 }
 
 void AProceduralTerrain::GenerateDensityFromFields(AProjectCPPGameMode* GameMode)
 {
 
-    GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Making terrain data...");
+    if (GameMode->RockMaterial) {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Magenta, "Mat: " + GameMode->RockMaterial->GetName());
+        mesh->SetMaterial(0, GameMode->RockMaterial);
+    }
+    else GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "RockMaterial is NULL");
+
+    const FVector bounds(GameMode->GetChunkSize());
+    const FVector h(bounds / 2);
+
+    box->SetRelativeLocation(h);
+    box->SetBoxExtent(h);
+
+    //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Making terrain data...");
 
     FVector loc = GetActorLocation();
 
-    int res = terrainSize + 1; // number of densities needed = voxels + 1
+    int res = GameMode->terrainSize + 1; // number of densities needed = voxels + 1
     DensityCache.Empty();
 
     for (int x = 0; x < res; x++)
@@ -69,12 +74,11 @@ void AProceduralTerrain::GenerateDensityFromFields(AProjectCPPGameMode* GameMode
             for (int z = 0; z < res; z++)
             {
                 // local location:
-                FVector locloc = FVector(x, y, z) * voxelSize;
+                FVector locloc = FVector(x, y, z) * GameMode->voxelSize;
 
                 // world location:
                 FVector seed = loc + locloc;
 
-                //densityCol.density.Emplace(FMath::PerlinNoise3D(seed * noiseZoom));
                 densityCol.density.Emplace(GameMode->GetDensitySample(seed));
             }
             densityPlane.density.Emplace(densityCol);
@@ -83,34 +87,33 @@ void AProceduralTerrain::GenerateDensityFromFields(AProjectCPPGameMode* GameMode
         DensityCache.density.Emplace(densityPlane);
     }
 
-
-    BeginCubeMarching();
+    BeginCubeMarching(GameMode);
 }
 
-void AProceduralTerrain::BeginCubeMarching()
+void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
 {
 
     // make variables for lambda function:
     const FTriangleListDelegate callback = OnCubeMarched;
     const TSoftObjectPtr<AProceduralTerrain> ptr = this;
     const FVector positions[8]{ 
-        voxelSize * FVector(-0.5f, -0.5f, +0.5f), // L B B
-        voxelSize * FVector(+0.5f, -0.5f, +0.5f), // R B B
-        voxelSize * FVector(+0.5f, -0.5f, -0.5f), // R B F
-        voxelSize * FVector(-0.5f, -0.5f, -0.5f), // L B F
-        voxelSize * FVector(-0.5f, +0.5f, +0.5f), // L T B
-        voxelSize * FVector(+0.5f, +0.5f, +0.5f), // R T B
-        voxelSize * FVector(+0.5f, +0.5f, -0.5f), // R T F
-        voxelSize * FVector(-0.5f, +0.5f, -0.5f)  // L T F
+        GameMode->voxelSize * FVector(-0.5f, -0.5f, +0.5f), // L B B
+        GameMode->voxelSize * FVector(+0.5f, -0.5f, +0.5f), // R B B
+        GameMode->voxelSize * FVector(+0.5f, -0.5f, -0.5f), // R B F
+        GameMode->voxelSize * FVector(-0.5f, -0.5f, -0.5f), // L B F
+        GameMode->voxelSize * FVector(-0.5f, +0.5f, +0.5f), // L T B
+        GameMode->voxelSize * FVector(+0.5f, +0.5f, +0.5f), // R T B
+        GameMode->voxelSize * FVector(+0.5f, +0.5f, -0.5f), // R T F
+        GameMode->voxelSize * FVector(-0.5f, +0.5f, -0.5f)  // L T F
     };
 
-    AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [callback, ptr, positions]() {
+    AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [callback, GameMode, ptr, positions]() {
 
         if (!ptr.IsValid()) return;
 
-        int size = ptr->terrainSize;
-        float voxelSize = ptr->voxelSize;
-        float iso = ptr->densityThreshold;
+        int size = GameMode->terrainSize;
+        float voxelSize = GameMode->voxelSize;
+        float iso = GameMode->densityThreshold;
 
         const FVoxelData3D &d = ptr->DensityCache;
         auto& triTable = AProceduralTerrain::TriTable;
@@ -180,7 +183,7 @@ void AProceduralTerrain::BeginCubeMarching()
         } // end of z
         AsyncTask(ENamedThreads::GameThread, [callback, tris]()
         {
-            GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Yellow, "done cube marching");
+            //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Yellow, "done cube marching");
             if (callback.IsBound()) callback.Broadcast(tris);
         });
     });

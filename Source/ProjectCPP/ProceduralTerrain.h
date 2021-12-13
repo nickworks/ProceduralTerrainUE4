@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProceduralMeshActor.h"
 #include "ProjectCPPGameMode.h"
 #include "Async/AsyncWork.h"
@@ -23,21 +24,6 @@ class PROJECTCPP_API AProceduralTerrain : public AProceduralMeshActor
 public:
 	AProceduralTerrain();
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-    bool regenerate = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-    bool clearMeshData = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-	int terrainSize = 10; // number of voxels in the terrain
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-	float voxelSize = 100.f; // voxel size, in centimeters
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
-	float densityThreshold = 0.0f; // 
-
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
     class UBoxComponent* box;
 
@@ -53,15 +39,12 @@ public:
     UFUNCTION(BlueprintCallable)
     void GenerateDensityFromFields(AProjectCPPGameMode* GameMode);
 
-
-    FORCEINLINE FVector GetSize() const { return FVector::OneVector * terrainSize * voxelSize; }
-
 protected:
     UFUNCTION()
     void HandleOnCubeMarched(TArray<FTriangle> tris);
 
     UFUNCTION()
-    void BeginCubeMarching();
+    void BeginCubeMarching(AProjectCPPGameMode* GameMode);
 
     static FVector LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2);
 
