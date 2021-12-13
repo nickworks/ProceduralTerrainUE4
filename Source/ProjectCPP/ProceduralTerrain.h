@@ -39,7 +39,11 @@ public:
     UFUNCTION(BlueprintCallable)
     void GenerateDensityFromFields(AProjectCPPGameMode* GameMode);
 
+    bool bIsMeshGenerated = false;
+
 protected:
+
+
     UFUNCTION()
     void HandleOnCubeMarched(TArray<FTriangle> tris);
 

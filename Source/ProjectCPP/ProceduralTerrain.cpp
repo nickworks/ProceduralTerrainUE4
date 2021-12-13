@@ -8,7 +8,7 @@ AProceduralTerrain::AProceduralTerrain() : AProceduralMeshActor()
 	PrimaryActorTick.bCanEverTick = false;
     
     box = CreateDefaultSubobject<UBoxComponent>(FName("box"));
-
+    box->SetHiddenInGame(false);
 }
 
 void AProceduralTerrain::BeginPlay()
@@ -37,55 +37,24 @@ void AProceduralTerrain::OnConstruction(const FTransform& xform)
     ClearMesh();
     MakeBox(b, boxSize);
     MakeBox(h + h - b, boxSize);
-    
 }
 
 void AProceduralTerrain::GenerateDensityFromFields(AProjectCPPGameMode* GameMode)
 {
 
+    if (bIsMeshGenerated) {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "Wait a minute, the mesh is already generated");
+    }
     if (GameMode->RockMaterial) {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Magenta, "Mat: " + GameMode->RockMaterial->GetName());
         mesh->SetMaterial(0, GameMode->RockMaterial);
     }
-    else GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "RockMaterial is NULL");
+    else if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "RockMaterial is NULL");
 
     const FVector bounds(GameMode->GetChunkSize());
     const FVector h(bounds / 2);
 
     box->SetRelativeLocation(h);
     box->SetBoxExtent(h);
-
-    //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Making terrain data...");
-
-    FVector loc = GetActorLocation();
-
-    int res = GameMode->terrainSize + 1; // number of densities needed = voxels + 1
-    DensityCache.Empty();
-
-    for (int x = 0; x < res; x++)
-    {
-        FVoxelData2D densityPlane;
-
-        for (int y = 0; y < res; y++)
-        {
-
-            FVoxelData1D densityCol;
-
-            for (int z = 0; z < res; z++)
-            {
-                // local location:
-                FVector locloc = FVector(x, y, z) * GameMode->voxelSize;
-
-                // world location:
-                FVector seed = loc + locloc;
-
-                densityCol.density.Emplace(GameMode->GetDensitySample(seed));
-            }
-            densityPlane.density.Emplace(densityCol);
-        }
-        /**/
-        DensityCache.density.Emplace(densityPlane);
-    }
 
     BeginCubeMarching(GameMode);
 }
@@ -109,13 +78,46 @@ void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
 
     AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [callback, GameMode, ptr, positions]() {
 
+
+        // calculate density values:
+
+        FVector loc = ptr->GetActorLocation();
+        int res = GameMode->terrainSize + 1; // number of densities needed = voxels + 1
+        FVoxelData3D d;
+
+        for (int x = 0; x < res; x++)
+        {
+            FVoxelData2D densityPlane;
+
+            for (int y = 0; y < res; y++)
+            {
+
+                FVoxelData1D densityCol;
+
+                for (int z = 0; z < res; z++)
+                {
+                    // local location:
+                    FVector locloc = FVector(x, y, z) * GameMode->voxelSize;
+
+                    // world location:
+                    FVector seed = loc + locloc;
+
+                    densityCol.density.Emplace(GameMode->GetDensitySample(seed));
+                }
+                densityPlane.density.Emplace(densityCol);
+            }
+            /**/
+            d.density.Emplace(densityPlane);
+        }
+
+        // do the cube marching:
+
         if (!ptr.IsValid()) return;
 
         int size = GameMode->terrainSize;
         float voxelSize = GameMode->voxelSize;
         float iso = GameMode->densityThreshold;
 
-        const FVoxelData3D &d = ptr->DensityCache;
         auto& triTable = AProceduralTerrain::TriTable;
         auto& edgeTable = AProceduralTerrain::EdgeTable;
         auto lerpEdge = &AProceduralTerrain::LerpEdge;
@@ -193,6 +195,7 @@ void AProceduralTerrain::HandleOnCubeMarched(TArray<FTriangle> tris)
 {
     ClearMesh();
     AddMesh(tris);
+    bIsMeshGenerated = true;
 }
 
 FVector AProceduralTerrain::LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2)

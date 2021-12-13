@@ -11,6 +11,54 @@
 #include "ProjectCPPGameMode.generated.h"
 
 USTRUCT(BlueprintType)
+struct FGridPos {
+	GENERATED_BODY()
+	UPROPERTY()
+	int32 X;
+	UPROPERTY()
+	int32 Y;
+	UPROPERTY()
+	int32 Z;
+	FGridPos() {
+		X = 0;
+		Y = 0;
+		Z = 0;
+	}
+	FGridPos(int32 x, int32 y, int32 z) {
+		X = x;
+		Y = y;
+		Z = z;
+	}
+	FGridPos(FVector WorldPosition, FVector ChunkSize) {
+
+		X = FMath::FloorToInt(WorldPosition.X / ChunkSize.X);
+		Y = FMath::FloorToInt(WorldPosition.Y / ChunkSize.Y);
+		Z = FMath::FloorToInt(WorldPosition.Z / ChunkSize.Z);
+	}
+	friend bool operator==(FGridPos &a, FGridPos &b) {
+		return (a.X == b.X && a.Y == b.Y && a.Z == b.Z);
+	}
+	friend bool operator!=(FGridPos& a, FGridPos& b) {
+		return !(a == b);
+	}
+	friend FGridPos operator+(FGridPos& a, FGridPos& b) {
+		return FGridPos(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+	}
+	friend FVector operator+(const FVector& a, const FGridPos& b) {
+		return FVector(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+	}
+	friend FVector operator+(const FGridPos& a, const FVector& b) {
+		return FVector(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+	}
+	friend FGridPos operator-(FGridPos& a, FGridPos& b) {
+		return FGridPos(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+	}
+	FString ToString() {
+		return FString::FromInt(X) + " " + FString::FromInt(Y) + " " + FString::FromInt(Z);
+	}
+};
+
+USTRUCT(BlueprintType)
 struct FChunk1D
 {
 	GENERATED_BODY()
@@ -55,10 +103,12 @@ struct FChunk3D
 	}
 
 	AProceduralTerrain* Lookup(int x, int y, int z) const {
+		if (x < 0 || y < 0 || z < 0) return nullptr;
 		if (x >= chunks.Num() || y >= chunks[x].chunks.Num() || z >= chunks[x].chunks[y].chunks.Num()) return nullptr;
 		return chunks[x].chunks[y].chunks[z];
 	}
 	void Set(int x, int y, int z, AProceduralTerrain* d) {
+		if (x < 0 || y < 0 || z < 0) return;
 		if (x >= chunks.Num() || y >= chunks[x].chunks.Num() || z >= chunks[x].chunks[y].chunks.Num()) return;
 		chunks[x].chunks[y].chunks[z] = d;
 	}
@@ -86,11 +136,15 @@ public:
 		float densityThreshold = 0.5f; // 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+		int32 renderDistance = 2; // 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
 		class UMaterial* RockMaterial;
 
 protected:
 	TArray<FSignalField> TheSignalFields;
 
+	FGridPos ChunkPosition;
 	FChunk3D Chunks;
 
 public:
