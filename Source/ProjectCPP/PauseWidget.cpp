@@ -14,4 +14,3 @@ void UPauseWidget::NativeConstruct() {
 void UPauseWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime) {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 }
-

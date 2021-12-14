@@ -25,7 +25,7 @@ void AProjectCPPGameMode::SetFields(TArray<FSignalField> data)
 
     for (TActorIterator<class AProceduralTerrain> ActorItr(GetWorld()); ActorItr; ++ActorItr)
     {
-        ActorItr->GenerateDensityFromFields(this);
+        ActorItr->InitFromFields(this);
     }
 }
 
@@ -131,76 +131,85 @@ float AProjectCPPGameMode::GetDensitySample(FVector pos)
 void AProjectCPPGameMode::UpdateSimulationLocation(FVector location)
 {
 
+    
+    // calculate the grid-position the position:
+    FGridPos chunkXYZ(location, GetChunkSize());
+
+    if (chunkXYZ != ChunkPosition) RegenerateWorld(chunkXYZ);
+     
+    ProcessMeshesQueue();
+}
+void AProjectCPPGameMode::RegenerateWorld(FGridPos newCenter) {
+
+    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Player now in chunk ") + newCenter.ToString());
+
+    FGridPos diff = newCenter - ChunkPosition; // get slide offset
+    ChunkPosition = newCenter; // cache for next frame
+
+    int size = renderDistance * 2 + 1;
+    FChunk3D NewList(size);
+
     const FVector chunkSize = GetChunkSize();
 
-    // calculate the position the position:
-    FGridPos chunkXYZ(location, chunkSize);
+    for (int x = 0; x < NewList.chunks.Num(); x++) {
+        for (int y = 0; y < NewList.chunks[x].chunks.Num(); y++) {
+            for (int z = 0; z < NewList.chunks[x].chunks[y].chunks.Num(); z++) {
 
-    if (chunkXYZ != ChunkPosition) {
+                AProceduralTerrain* chunk = Chunks.Lookup(x + diff.X, y + diff.Y, z + diff.Z);
 
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Player now in chunk ") + chunkXYZ.ToString());
-        FGridPos diff = chunkXYZ - ChunkPosition; // get slide offset
-        ChunkPosition = chunkXYZ; // cache for next frame
+                if (chunk == nullptr) {
 
-        int size = renderDistance * 2 + 1;
-        FChunk3D NewList(size);
+                    FVector loc(chunkSize * (FVector(x, y, z) - FVector(renderDistance) + newCenter));
 
-        for (int x = 0; x < NewList.chunks.Num(); x++) {
-            for (int y = 0; y < NewList.chunks[x].chunks.Num(); y++) {
-                for (int z = 0; z < NewList.chunks[x].chunks[y].chunks.Num(); z++) {
+                    auto* actor = GetWorld()->SpawnActor<AProceduralTerrain>(loc, FRotator(0, 0, 0));
 
-                    AProceduralTerrain* chunk = Chunks.Lookup(x + diff.X, y + diff.Y, z + diff.Z);
-
-                    if (chunk == nullptr) {
-
-                        FVector loc(chunkSize * (FVector(x, y, z)  - FVector(renderDistance) + chunkXYZ));
-
-                        auto* actor = GetWorld()->SpawnActor<AProceduralTerrain>(loc, FRotator(0,0,0));
-                        NewList.Set(x, y, z, actor);
-                    }
-                    else {
-                        NewList.Set(x, y, z, chunk);
-                        Chunks.Set(x + diff.X, y + diff.Y, z + diff.Z, nullptr); // replace with null so it doesn't get destroyed (below)
-                    }
+                    NewList.Set(x, y, z, actor);
+                    BuildQueue.Emplace(actor);
                 }
-            }
-        }
-
-        // DESTROY OLD CHUNKS:
-
-        for (int x = 0; x < Chunks.chunks.Num(); x++) {
-            for (int y = 0; y < Chunks.chunks[x].chunks.Num(); y++) {
-                for (int z = 0; z < Chunks.chunks[x].chunks[y].chunks.Num(); z++) {
-                    AProceduralTerrain* chunk = Chunks.Lookup(x,y,z);
-                    if (chunk != nullptr) {
-                        chunk->Destroy();
-                    }
-                }
-            }
-        }
-
-
-        Chunks = NewList;
-
-    }
-    else {
-
-        // this is currently foolish (in the Tick), but it could be turned into some kind of queue:
-
-        for (int x = 0; x < Chunks.chunks.Num(); x++) {
-            for (int y = 0; y < Chunks.chunks[x].chunks.Num(); y++) {
-                for (int z = 0; z < Chunks.chunks[x].chunks[y].chunks.Num(); z++) {
-                    AProceduralTerrain* chunk = Chunks.Lookup(x, y, z);
-                    if (chunk != nullptr && !chunk->bIsMeshGenerated) {
-
-                        // generate mesh on this chunk:
-                        chunk->GenerateDensityFromFields(this);
-                        return; // but no others this Tick
-                    }
+                else {
+                    NewList.Set(x, y, z, chunk);
+                    Chunks.Set(x + diff.X, y + diff.Y, z + diff.Z, nullptr); // replace with null so it doesn't get destroyed (below)
                 }
             }
         }
     }
 
+    // DESTROY OLD CHUNKS:
 
+    for (int x = 0; x < Chunks.chunks.Num(); x++) {
+        for (int y = 0; y < Chunks.chunks[x].chunks.Num(); y++) {
+            for (int z = 0; z < Chunks.chunks[x].chunks[y].chunks.Num(); z++) {
+                AProceduralTerrain* chunk = Chunks.Lookup(x, y, z);
+                if (chunk != nullptr) {
+                    chunk->Destroy();
+                }
+            }
+        }
+    }
+
+    Chunks = NewList;
+}
+void AProjectCPPGameMode::ProcessMeshesQueue()
+{
+
+    // queue the NEXT ungenerated chunk:
+
+
+    if (BuildQueue.Num() > 0) {
+        AProceduralTerrain *chunk = BuildQueue[0]; // get next chunk
+
+        if (!chunk) {
+            BuildQueue.RemoveAt(0); // remove from queue
+            return;
+        }
+        else if (!chunk->bIsInitialized) {
+            chunk->InitFromFields(this);
+        }
+        else if (chunk->bIsMeshGenerated || chunk->bFailedToGenerate) {
+            BuildQueue.RemoveAt(0);
+        }
+        else {
+            //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Black, "snooze...");
+        }
+    }
 }

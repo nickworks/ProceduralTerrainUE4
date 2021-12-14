@@ -15,6 +15,8 @@ void AProceduralTerrain::BeginPlay()
 {
 	Super::BeginPlay();
     OnCubeMarched.AddDynamic(this, &AProceduralTerrain::HandleOnCubeMarched);
+    OnDestroyed.AddDynamic(this, &AProceduralTerrain::HandleOnDestroyed);
+
 }
 
 
@@ -35,16 +37,14 @@ void AProceduralTerrain::OnConstruction(const FTransform& xform)
     const FVector b(boxSize / 2);
 
     ClearMesh();
-    MakeBox(b, boxSize);
-    MakeBox(h + h - b, boxSize);
+    //MakeBox(b, boxSize);
+    //MakeBox(h + h - b, boxSize);
 }
 
-void AProceduralTerrain::GenerateDensityFromFields(AProjectCPPGameMode* GameMode)
+void AProceduralTerrain::InitFromFields(AProjectCPPGameMode* GameMode)
 {
-
-    if (bIsMeshGenerated) {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "Wait a minute, the mesh is already generated");
-    }
+    bIsInitialized = true;
+    
     if (GameMode->RockMaterial) {
         mesh->SetMaterial(0, GameMode->RockMaterial);
     }
@@ -75,12 +75,18 @@ void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
         GameMode->voxelSize * FVector(+0.5f, +0.5f, -0.5f), // R T F
         GameMode->voxelSize * FVector(-0.5f, +0.5f, -0.5f)  // L T F
     };
+    if (!ptr) {
+        bFailedToGenerate = true;
+        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "chunk FAILED to generate");
+        return;
+    }
 
     AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [callback, GameMode, ptr, positions]() {
 
 
+        if (!ptr) return;
+        
         // calculate density values:
-
         FVector loc = ptr->GetActorLocation();
         int res = GameMode->terrainSize + 1; // number of densities needed = voxels + 1
         FVoxelData3D d;
@@ -191,11 +197,19 @@ void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
     });
 }
 
+void AProceduralTerrain::HandleOnDestroyed(AActor* actor)
+{
+    if (actor != this) return;
+    OnDestroyed.Clear();
+    OnCubeMarched.Clear();
+    OnBuildMeshCompleted.Clear();
+}
+
 void AProceduralTerrain::HandleOnCubeMarched(TArray<FTriangle> tris)
 {
     ClearMesh();
-    AddMesh(tris);
     bIsMeshGenerated = true;
+    AddMesh(tris);
 }
 
 FVector AProceduralTerrain::LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2)

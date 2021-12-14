@@ -143,10 +143,11 @@ public:
 
 protected:
 	TArray<FSignalField> TheSignalFields;
-
+	TArray<AProceduralTerrain*> BuildQueue;
 	FGridPos ChunkPosition;
 	FChunk3D Chunks;
-
+	UFUNCTION()
+	void RegenerateWorld(FGridPos NewCenter);
 public:
 	UFUNCTION()
 	void SetFields(TArray<FSignalField> data);
@@ -154,6 +155,8 @@ public:
 	float GetDensitySample(FVector pos);
 	UFUNCTION()
 	void UpdateSimulationLocation(FVector location);
+	UFUNCTION()
+	void ProcessMeshesQueue();
 
 	UFUNCTION(BlueprintCallable)
 	FORCEINLINE TArray<FSignalField> GetFields() const { return TheSignalFields; }

@@ -31,6 +31,9 @@ public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Callbacks")
 	FOnPauseApply OnCloseWithApply;
 
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
+	void UpdateFieldCards(const TArray<FSignalField>& fields);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="References")
 	class AProjectCPPGameMode* GameModeRef;

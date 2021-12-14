@@ -37,12 +37,16 @@ public:
 	virtual void OnConstruction(const FTransform& xform) override;
 
     UFUNCTION(BlueprintCallable)
-    void GenerateDensityFromFields(AProjectCPPGameMode* GameMode);
+    void InitFromFields(AProjectCPPGameMode* GameMode);
 
+    bool bIsInitialized = false;
     bool bIsMeshGenerated = false;
+    bool bFailedToGenerate = false;
 
 protected:
 
+    UFUNCTION()
+    void HandleOnDestroyed(AActor* actor);
 
     UFUNCTION()
     void HandleOnCubeMarched(TArray<FTriangle> tris);

@@ -67,18 +67,13 @@ void AProjectCPPCharacter::SetupPlayerInputComponent(class UInputComponent* Play
 	PlayerInputComponent->BindAction("Toggle View", EInputEvent::IE_Pressed, this, &AProjectCPPCharacter::ChangeView);
 	
 	auto &ref = PlayerInputComponent->BindAction("Pause", IE_Pressed, this, &AProjectCPPCharacter::HandlePause);
-	//ref.bExecuteWhenPaused = true;
+	ref.bExecuteWhenPaused = true;
 }
 
 void AProjectCPPCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	if (PauseWidgetClass) {
-		PauseWidget = CreateWidget<UPauseWidget>(GetWorld()->GetFirstPlayerController(), PauseWidgetClass);
-		PauseWidget->OnCloseWithApply.AddDynamic(this, &AProjectCPPCharacter::HandlePauseApply);
-		PauseWidget->OnCloseWithCancel.AddDynamic(this, &AProjectCPPCharacter::HandlePauseCancel);
-		
-	}
+	
 	GameMode = Cast<AProjectCPPGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 	OnDestroyed.AddDynamic(this, &AProjectCPPCharacter::OnDestroy);
 }
@@ -173,18 +168,39 @@ void AProjectCPPCharacter::MoveRight(float Value)
 
 void AProjectCPPCharacter::HandlePause()
 {
-	UGameplayStatics::SetGamePaused(GetWorld(), true);
-	if (PauseWidget) {
+	UWorld* world = GetWorld();
+	if (!world) return;
+	
+	APlayerController* pc = world->GetFirstPlayerController();
+	if (!pc) return;
+	
+	if (world->IsPaused()) {
+		HandlePauseCancel();
+	}
+	else if (PauseWidgetClass) {
+		
+		if (PauseWidget) PauseWidget->RemoveFromParent();
+
+		PauseWidget = CreateWidget<UPauseWidget>(GetWorld()->GetFirstPlayerController(), PauseWidgetClass);
+		PauseWidget->OnCloseWithApply.AddDynamic(this, &AProjectCPPCharacter::HandlePauseApply);
+		PauseWidget->OnCloseWithCancel.AddDynamic(this, &AProjectCPPCharacter::HandlePauseCancel);
+		
+		TArray<FSignalField> fields = GameMode->GetFields();
+			
+		PauseWidget->UpdateFieldCards(fields);
+
 		PauseWidget->AddToPlayerScreen();
 
-		APlayerController *pc = GetWorld()->GetFirstPlayerController();
 
-		FInputModeUIOnly mode;
+		FInputModeGameAndUI mode;
 		mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		
+
 		pc->SetInputMode(mode);
 		pc->SetShowMouseCursor(true);
+
+		UGameplayStatics::SetGamePaused(world, true);
 	}
+	
 }
 void AProjectCPPCharacter::HandlePauseApply(TArray<FSignalField> data) {
 
@@ -195,7 +211,10 @@ void AProjectCPPCharacter::HandlePauseCancel() {
 
 	UGameplayStatics::SetGamePaused(GetWorld(), false);
 	
-	if (PauseWidget) PauseWidget->RemoveFromParent();
+	if (PauseWidget) {
+		PauseWidget->RemoveFromParent();
+		PauseWidget = nullptr;
+	}
 
 	APlayerController* pc = GetWorld()->GetFirstPlayerController();
 
