@@ -39,6 +39,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void InitFromFields(AProjectCPPGameMode* GameMode);
 
+    UFUNCTION()
+    void SpawnSomething(TSubclassOf<AActor> thing);
+
     bool bIsInitialized = false;
     bool bIsMeshGenerated = false;
     bool bFailedToGenerate = false;
@@ -51,8 +54,6 @@ protected:
     UFUNCTION()
     void HandleOnCubeMarched(TArray<FTriangle> tris);
 
-    UFUNCTION()
-    void BeginCubeMarching(AProjectCPPGameMode* GameMode);
 
     static FVector LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2);
 

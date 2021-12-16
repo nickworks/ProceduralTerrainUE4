@@ -163,6 +163,8 @@ void AProjectCPPGameMode::RegenerateWorld(FGridPos newCenter) {
 
                     auto* actor = GetWorld()->SpawnActor<AProceduralTerrain>(loc, FRotator(0, 0, 0));
 
+                    actor->SetOwner(GetOwner());
+
                     NewList.Set(x, y, z, actor);
                     BuildQueue.Emplace(actor);
                 }
@@ -205,7 +207,11 @@ void AProjectCPPGameMode::ProcessMeshesQueue()
         else if (!chunk->bIsInitialized) {
             chunk->InitFromFields(this);
         }
-        else if (chunk->bIsMeshGenerated || chunk->bFailedToGenerate) {
+        else if (chunk->bIsMeshGenerated) {
+            chunk->SpawnSomething(this->ThingToSpawn);
+            BuildQueue.RemoveAt(0);
+        }
+        else if (chunk->bFailedToGenerate) {
             BuildQueue.RemoveAt(0);
         }
         else {

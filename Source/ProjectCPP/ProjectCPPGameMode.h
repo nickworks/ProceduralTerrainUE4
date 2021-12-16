@@ -141,6 +141,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
 		class UMaterial* RockMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain")
+		TSubclassOf<class AActor> ThingToSpawn;
+
 protected:
 	TArray<FSignalField> TheSignalFields;
 	TArray<AProceduralTerrain*> BuildQueue;

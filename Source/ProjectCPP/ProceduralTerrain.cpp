@@ -6,9 +6,7 @@
 AProceduralTerrain::AProceduralTerrain() : AProceduralMeshActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
-    
     box = CreateDefaultSubobject<UBoxComponent>(FName("box"));
-    box->SetHiddenInGame(false);
 }
 
 void AProceduralTerrain::BeginPlay()
@@ -16,9 +14,7 @@ void AProceduralTerrain::BeginPlay()
 	Super::BeginPlay();
     OnCubeMarched.AddDynamic(this, &AProceduralTerrain::HandleOnCubeMarched);
     OnDestroyed.AddDynamic(this, &AProceduralTerrain::HandleOnDestroyed);
-
 }
-
 
 void AProceduralTerrain::OnConstruction(const FTransform& xform)
 {
@@ -45,26 +41,32 @@ void AProceduralTerrain::InitFromFields(AProjectCPPGameMode* GameMode)
 {
     bIsInitialized = true;
     
-    if (GameMode->RockMaterial) {
-        mesh->SetMaterial(0, GameMode->RockMaterial);
+    const TSoftObjectPtr<AProceduralTerrain> ptr = this;
+    if (!ptr) {
+        bFailedToGenerate = true;
+        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "chunk FAILED to generate");
+        return;
     }
-    else if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "RockMaterial is NULL");
+    
+    if (mesh) {
+        if (GameMode->RockMaterial) {
+            mesh->SetMaterial(0, GameMode->RockMaterial);
+        }
+        else if (GEngine) {
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "RockMaterial is NULL");
+        }
+    }
+    if (box) {
+        const FVector bounds(GameMode->GetChunkSize());
+        const FVector h(bounds / 2);
 
-    const FVector bounds(GameMode->GetChunkSize());
-    const FVector h(bounds / 2);
-
-    box->SetRelativeLocation(h);
-    box->SetBoxExtent(h);
-
-    BeginCubeMarching(GameMode);
-}
-
-void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
-{
+        box->SetRelativeLocation(h);
+        box->SetBoxExtent(h);
+        box->SetHiddenInGame(false);
+    }
 
     // make variables for lambda function:
     const FTriangleListDelegate callback = OnCubeMarched;
-    const TSoftObjectPtr<AProceduralTerrain> ptr = this;
     const FVector positions[8]{ 
         GameMode->voxelSize * FVector(-0.5f, -0.5f, +0.5f), // L B B
         GameMode->voxelSize * FVector(+0.5f, -0.5f, +0.5f), // R B B
@@ -75,11 +77,6 @@ void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
         GameMode->voxelSize * FVector(+0.5f, +0.5f, -0.5f), // R T F
         GameMode->voxelSize * FVector(-0.5f, +0.5f, -0.5f)  // L T F
     };
-    if (!ptr) {
-        bFailedToGenerate = true;
-        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "chunk FAILED to generate");
-        return;
-    }
 
     AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [callback, GameMode, ptr, positions]() {
 
@@ -191,7 +188,6 @@ void AProceduralTerrain::BeginCubeMarching(AProjectCPPGameMode* GameMode)
         } // end of z
         AsyncTask(ENamedThreads::GameThread, [callback, tris]()
         {
-            //GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Yellow, "done cube marching");
             if (callback.IsBound()) callback.Broadcast(tris);
         });
     });
@@ -203,6 +199,14 @@ void AProceduralTerrain::HandleOnDestroyed(AActor* actor)
     OnDestroyed.Clear();
     OnCubeMarched.Clear();
     OnBuildMeshCompleted.Clear();
+
+    TArray<AActor*> children;
+    GetAttachedActors(children);
+
+    for (AActor* child : children) {
+        child->Destroy();
+    }
+
 }
 
 void AProceduralTerrain::HandleOnCubeMarched(TArray<FTriangle> tris)
@@ -210,6 +214,21 @@ void AProceduralTerrain::HandleOnCubeMarched(TArray<FTriangle> tris)
     ClearMesh();
     bIsMeshGenerated = true;
     AddMesh(tris);
+}
+
+void AProceduralTerrain::SpawnSomething(TSubclassOf<AActor> thing)
+{
+    if (!thing) return;
+
+    FProcMeshSection *sec = mesh->GetProcMeshSection(FMath::Rand() % mesh->GetNumSections());
+    FProcMeshVertex vert = sec->ProcVertexBuffer[FMath::Rand() % sec->ProcVertexBuffer.Num()];
+
+    
+    FVector pos = GetActorLocation() + vert.Position;
+
+    AActor* newThing = GetWorld()->SpawnActor<AActor>(thing, pos, FRotator());
+
+    newThing->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
 }
 
 FVector AProceduralTerrain::LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2)
