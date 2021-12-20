@@ -157,6 +157,8 @@ public:
 	UFUNCTION()
 	float GetDensitySample(FVector pos);
 	UFUNCTION()
+	void DestroyAllChunks(bool allInWorld = false);
+	UFUNCTION()
 	void UpdateSimulationLocation(FVector location);
 	UFUNCTION()
 	void ProcessMeshesQueue();

@@ -22,11 +22,8 @@ void AProjectCPPGameMode::SetFields(TArray<FSignalField> data)
 	
 	TheSignalFields = TArray<FSignalField>(data);
 
-
-    for (TActorIterator<class AProceduralTerrain> ActorItr(GetWorld()); ActorItr; ++ActorItr)
-    {
-        ActorItr->InitFromFields(this);
-    }
+    DestroyAllChunks(true);
+    RegenerateWorld(ChunkPosition);
 }
 
 float AProjectCPPGameMode::GetDensitySample(FVector pos)
@@ -135,7 +132,9 @@ void AProjectCPPGameMode::UpdateSimulationLocation(FVector location)
     // calculate the grid-position the position:
     FGridPos chunkXYZ(location, GetChunkSize());
 
-    if (chunkXYZ != ChunkPosition) RegenerateWorld(chunkXYZ);
+    if (chunkXYZ != ChunkPosition) {
+        RegenerateWorld(chunkXYZ);
+    }
      
     ProcessMeshesQueue();
 }
@@ -177,19 +176,32 @@ void AProjectCPPGameMode::RegenerateWorld(FGridPos newCenter) {
     }
 
     // DESTROY OLD CHUNKS:
+    DestroyAllChunks();
 
-    for (int x = 0; x < Chunks.chunks.Num(); x++) {
-        for (int y = 0; y < Chunks.chunks[x].chunks.Num(); y++) {
-            for (int z = 0; z < Chunks.chunks[x].chunks[y].chunks.Num(); z++) {
-                AProceduralTerrain* chunk = Chunks.Lookup(x, y, z);
-                if (chunk != nullptr) {
-                    chunk->Destroy();
+    Chunks = NewList;
+}
+void AProjectCPPGameMode::DestroyAllChunks(bool allInWorld) {
+    
+    if (allInWorld) { // destroy all in world:
+
+        for (TActorIterator<class AProceduralTerrain> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+        {
+            ActorItr->Destroy();
+        }
+    } else {
+        // destroy all referenced:
+        for (int x = 0; x < Chunks.chunks.Num(); x++) {
+            for (int y = 0; y < Chunks.chunks[x].chunks.Num(); y++) {
+                for (int z = 0; z < Chunks.chunks[x].chunks[y].chunks.Num(); z++) {
+                    AProceduralTerrain* chunk = Chunks.Lookup(x, y, z);
+                    if (chunk != nullptr) {
+                        chunk->Destroy();
+                    }
                 }
             }
         }
     }
-
-    Chunks = NewList;
+    Chunks = FChunk3D();
 }
 void AProjectCPPGameMode::ProcessMeshesQueue()
 {

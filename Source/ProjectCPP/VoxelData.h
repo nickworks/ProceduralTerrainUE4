@@ -102,7 +102,7 @@ public:
 		this->zoom = .001f;
 		this->center = FVector(0, 0, 0);
 		this->densityBias = 0;
-		this->flattenToPlane = 0;
+		this->flattenToPlane = 0.4f;
 		this->flattenToSphere = 0;
 		this->flattenOffset = 0;
 		this->type = ESignalType::Add;

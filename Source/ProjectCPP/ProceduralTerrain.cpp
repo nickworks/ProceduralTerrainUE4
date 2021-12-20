@@ -43,8 +43,9 @@ void AProceduralTerrain::InitFromFields(AProjectCPPGameMode* GameMode)
     
     const TSoftObjectPtr<AProceduralTerrain> ptr = this;
     if (!ptr) {
+        // this is most likely because a chunk was deleted before it was processed in the BuildQueue
         bFailedToGenerate = true;
-        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "chunk FAILED to generate");
+        //if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "chunk FAILED to generate");
         return;
     }
     
@@ -220,15 +221,21 @@ void AProceduralTerrain::SpawnSomething(TSubclassOf<AActor> thing)
 {
     if (!thing) return;
 
-    FProcMeshSection *sec = mesh->GetProcMeshSection(FMath::Rand() % mesh->GetNumSections());
-    FProcMeshVertex vert = sec->ProcVertexBuffer[FMath::Rand() % sec->ProcVertexBuffer.Num()];
+    if (mesh->GetNumSections() > 0) // there are sections in this chunk:
+    {
+        FProcMeshSection* sec = mesh->GetProcMeshSection(FMath::Rand() % mesh->GetNumSections());
+
+        if (sec->ProcVertexBuffer.Num() > 0) { // there are vertices in this section:
+
+            FProcMeshVertex vert = sec->ProcVertexBuffer[FMath::Rand() % sec->ProcVertexBuffer.Num()];
+
+            FVector pos = GetActorLocation() + vert.Position;
+            AActor* newThing = GetWorld()->SpawnActor<AActor>(thing, pos, FRotator());
+            newThing->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
+        }
+    }
 
     
-    FVector pos = GetActorLocation() + vert.Position;
-
-    AActor* newThing = GetWorld()->SpawnActor<AActor>(thing, pos, FRotator());
-
-    newThing->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true));
 }
 
 FVector AProceduralTerrain::LerpEdge(float iso, FVector p1, FVector p2, float val1, float val2)
